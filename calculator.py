@@ -1,5 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox
+from decimal import Decimal, getcontext
+
+# Set precision for Decimal calculations
+getcontext().prec = 10
 
 def click(event):
     global expression
@@ -7,16 +10,21 @@ def click(event):
 
     if text == "=":
         try:
-            result = str(eval(expression))
+            eval_expr = expression.replace("×", "*").replace("÷", "/").replace("%", " % ")
+            # Safely evaluate using Decimal
+            result = str(eval(eval_expr, {"__builtins__": None}, {"Decimal": Decimal}))
             calc_history.append(expression + " = " + result)
             equation.set(result)
-            expression = result  # Allow further calculation
-        except Exception as e:
+            expression = result
+        except Exception:
             equation.set("Error")
             expression = ""
     elif text == "C":
         expression = ""
         equation.set("")
+    elif text == "X":
+        expression = expression[:-1]
+        equation.set(expression)
     elif text == "H":
         show_history()
     else:
@@ -24,16 +32,21 @@ def click(event):
         equation.set(expression)
 
 def show_history():
-    if not calc_history:
-        messagebox.showinfo("History", "No past calculations to show.")
-    else:
-        history_text = "\n".join(calc_history[-10:])  # Show last 10
-        messagebox.showinfo("Calculation History", history_text)
+    history_window = tk.Toplevel(root)
+    history_window.title("Calculation History")
+    history_window.geometry("300x400")
+    history_window.configure(bg="white")
 
-# Initialize GUI
+    if not calc_history:
+        tk.Label(history_window, text="No history available.", font="Arial 14", bg="white").pack(pady=10)
+    else:
+        for record in calc_history:
+            tk.Label(history_window, text=record, font="Arial 12", bg="white", anchor='w').pack(fill='x', padx=10)
+
+# Initialize main window
 root = tk.Tk()
 root.title("Calculator")
-root.geometry("360x520")
+root.geometry("350x550")
 root.configure(bg="black")
 
 expression = ""
@@ -43,29 +56,44 @@ equation = tk.StringVar()
 
 entry = tk.Entry(root, textvar=equation, font="Arial 30", bd=10, insertwidth=2, width=14,
                  bg="black", fg="white", justify='right')
-entry.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
+entry.grid(row=0, column=0, columnspan=4, padx=15, pady=10)
 
-# Buttons layout (with History button)
+# Buttons layout
 buttons = [
-    ["C", "H", "%", "÷"],
+    ["C", "X", "H", "÷"],
     ["7", "8", "9", "×"],
     ["4", "5", "6", "-"],
     ["1", "2", "3", "+"],
-    ["0", ".", "="]
+    ["0 ", ".", "%", "="]
 ]
-
-symbol_to_operator = {"÷": "/", "×": "*", "%": "%"}
 
 for i, row in enumerate(buttons):
     for j, btn_text in enumerate(row):
-        display_text = btn_text
-        if btn_text in symbol_to_operator:
-            btn_text = symbol_to_operator[btn_text]
+        # Special case for 0 to span two columns
+        if btn_text == "0":
+            button = tk.Button(
+                root,
+                text=btn_text,
+                font="Arial 20",
+                padx=30,
+                pady=25,
+                bg="#333",
+                fg="white"
+            )
+            button.grid(row=i + 1, column=j, columnspan=2, sticky="nsew")
+            button.bind("<Button-1>", click)
+            continue
 
-        button = tk.Button(root, text=display_text, font="Arial 20", padx=20, pady=20,
-                           bg="#ff9500" if display_text in "+-*/=%÷×" else "#333",
-                           fg="white" if display_text != "C" else "black")
-        button.grid(row=i+1, column=j, sticky="nsew")
+        button = tk.Button(
+            root,
+            text=btn_text,
+            font="Arial 20",
+            padx=20,
+            pady=25,
+            bg="#ff9500" if btn_text in "+-×÷=%=" else "#333",
+            fg="white" if btn_text not in ("C", "X", "H") else "black"
+        )
+        button.grid(row=i + 1, column=j, sticky="nsew")
         button.bind("<Button-1>", click)
 
 root.mainloop()
